@@ -1,7 +1,7 @@
-import  customerloans
+import  postgresql
 
 def connect_to_db():
-    connection =  customerloans.connect(
+    connection =  postgresql.connect(
         database="database_name",
         user="username",
         password="password",
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         print(row)
 class RDSDatabaseConnector:
     def __init__(self, database_name, user, password, host):
-        self.connection = customerloans.connect(
+        self.connection = postgresql.connect(
             database=database_name,
             user=user,
             password=password,
