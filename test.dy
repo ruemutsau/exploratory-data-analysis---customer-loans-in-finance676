@@ -1,0 +1,30 @@
+import pymysql
+
+class RDSDatabaseConnector:
+
+    def __init__(self, db_host, db_name, db_user, db_password):
+        self.db_host = db_host
+        self.db_name = db_name
+        self.db_user = db_user
+        self.db_password = db_password
+
+    def connect_to_database(self):
+        connection = pymysql.connect(host=self.db_host, db=self.db_name, user=self.db_user, password=self.db_password)
+        return connection
+
+    def query_database(self, query):
+        connection = self.connect_to_database()
+        cursor = connection.cursor()
+
+        try:
+            cursor.execute(query)
+            results = cursor.fetchall()
+            return results
+        except Exception as e:
+            print("Error querying database:", e)
+            connection.close()
+            return None
+
+    def close_connection(self, connection):
+        if connection is not None:
+            connection.close()
