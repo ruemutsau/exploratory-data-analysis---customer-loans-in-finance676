@@ -49,3 +49,11 @@ class RDSDatabaseConnector:
     def extract_and_save_data(self, filename):
         data = self.query_and_return_pandas_dataframe("SELECT * FROM loan_payments")
         self.save_data_to_csv(data, filename)
+
+import pandas as pd
+
+def load_data_from_csv():
+    data_filepath = "loan_data.csv"
+    df = pd.read_csv(data_filepath)
+    return df
+
