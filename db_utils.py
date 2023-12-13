@@ -1,59 +1,84 @@
-import pymysql
-import yaml
+import pandas as pd
 from sqlalchemy import create_engine
-import pandas as pd
+import yaml
 
-class RDSDatabaseConnector:
 
-    def __init__(self, credentials_dict):
-        self.db_host = credentials_dict['RDS_HOST']
-        self.db_name = credentials_dict['RDS_DATABASE']
-        self.db_user = credentials_dict['RDS_USER']
-        self.db_password = credentials_dict['RDS_PASSWORD']
+# Extract the credentials from the yaml file into a dictionary.
+def extract_credentials():
 
-    def connect_to_database(self):
-        connection = pymysql.connect(host=self.db_host, db=self.db_name, user=self.db_user, password=self.db_password)
-        return connection
+    '''
+    This function is used to extract the credentials from yaml to a dictionary to establish connection with the RDS.
 
-    def load_credentials(self):
-        with open('credentials.yaml', 'r') as f:
-            credentials_dict = yaml.load(f)
-        return credentials_dict
+    Returns:
+        (dict): the credentials in dictionary format.
+    '''
 
-    def query_database(self, query):
-        connection = self.connect_to_database()
-        cursor = connection.cursor()
+    with open('credentials.yaml', 'r') as file:
+        return yaml.safe_load(file)
 
-        try:
-            cursor.execute(query)
-            results = cursor.fetchall()
-            return results
-        except Exception as e:
-            print("Error querying database:", e)
-            connection.close()
-            return None
+# Store the dictionary into a variable.
+credentials: dict = extract_credentials()
 
-    def close_connection(self, connection):
-        if connection is not None:
-            connection.close()
+# Creates class object to connect to RDS database and extract data.
+class RDSDatabaseConnector():
 
-    def query_and_return_pandas_dataframe(self, query):
-        connection = self.connect_to_database()
-        df = pd.read_sql(query, connection)
-        self.close_connection(connection)
-        return df
+    '''
+    This class is used to establish a connection with the AiCore RDS containing loan payments information.
 
-    def save_data_to_csv(self, data, filename):
-        data.to_csv(filename, index=False)
+    Attributes:
+        credentials_dict (dict): the dictionary containing the 'Host', 'Password', 'User', 'Database' and 'Port' required for the sqlalchemy to establish a connection with the RDS
+    '''
 
-    def extract_and_save_data(self, filename):
-        data = self.query_and_return_pandas_dataframe("SELECT * FROM loan_payments")
-        self.save_data_to_csv(data, filename)
+    def __init__(self, credentials_dict: dict):
 
-import pandas as pd
+        '''
+        This method is used to initialise this instance of the RDSDatabaseConnector class.
 
-def load_data_from_csv():
-    data_filepath = "loan_data.csv"
-    df = pd.read_csv(data_filepath)
-    return df
+        Attributes:
+            credentials_dict (dict): the dictionary containing the 'Host', 'Password', 'User', 'Database' and 'Port' required for the sqlalchemy to establish a connection with the RDS
+        '''
+        
+        self.credentials_dict = credentials_dict # when class is initiated it requires the credentials argument.
 
+    # Initialises SQLAlchemy engine.
+    def create_engine(self):
+        
+        '''
+        This method is used to create the SQLAlchemy engine which will be required to connect to the AiCore RDS.
+        '''
+
+        self.engine = create_engine(f"postgresql+psycopg2://{self.credentials_dict['RDS_USER']}:{self.credentials_dict['RDS_PASSWORD']}@{self.credentials_dict['RDS_HOST']}:{self.credentials_dict['RDS_PORT']}/{self.credentials_dict['RDS_DATABASE']}")
+
+    # Establishes a connection to the database and creates a pandas dataframe from the 'loan payments' table.
+    def extract_loans_data(self):
+
+        '''
+        This method is used to establish a connection to the RDS and extract the necessary 'loan_payments' table into a pandas dataframe.
+
+        Returns:
+            (pd.DataFrame): a dataframe containing all the data from the 'loan_payments' table in the RDS that will be analysed.
+        '''
+
+        with self.engine.connect() as connection:
+            self.loan_payments_df = pd.read_sql_table('loan_payments', self.engine)
+            return self.loan_payments_df
+    
+# Writes the pandas dataframe into a csv file.
+def save_data_to_csv(loans_df: pd.DataFrame):
+
+    '''
+    This function is used to write the 'loan_payments' dataframe into a csv file using a context manager.
+
+    Args:
+        loans_df (pd.DataFrame): The 'loan_payments' dataframe that will be written into a csv file..
+    '''
+
+    with open('loan_payments.csv', 'w') as file:
+        loans_df.to_csv(file, encoding= 'utf-8', index= False)
+
+if __name__ == '__main__':
+    connector = RDSDatabaseConnector(credentials) # Instantiates the 'RDSDatabaseConnector' class using the .
+    # Calling all defined methods:
+    connector.create_engine() # Creates the sqlalchemy engine to establish connection.
+    extracted_data_frame: pd.DataFrame = connector.extract_loans_data() # Extracts sql data to a pandas dataframe.
+    save_data_to_csv(extracted_data_frame) # Writes the dataframe into a csv file.
